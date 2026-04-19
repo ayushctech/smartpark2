@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartPark — Live Monitor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #080c10;
+      --surface:   #0d1117;
+      --border:    #1c2a3a;
+      --accent:    #00e5ff;
+      --green:     #00ff88;
+      --red:       #ff3355;
+      --yellow:    #ffd600;
+      --muted:     #3a4a5a;
+      --text:      #c8d8e8;
+      --mono:      'Share Tech Mono', monospace;
+      --sans:      'Rajdhani', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 24px 64px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--bg);
+      font-family: var(--mono);
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .logo-text h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      text-transform: uppercase;
+    }
+
+    .logo-text p {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 3px;
+      margin-top: 2px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 2px;
+      text-align: right;
+    }
+
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 1.5s infinite;
+    }
+
+    .live-dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); animation: none; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .updated-time {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-family: var(--mono);
+    }
+
+    /* ── Summary Cards ── */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+    }
+
+    .summary-card.total::before  { background: var(--accent); }
+    .summary-card.avail::before  { background: var(--green); }
+    .summary-card.occ::before    { background: var(--red); }
+
+    .summary-card label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 10px;
+    }
+
+    .summary-card .big-num {
+      font-family: var(--mono);
+      font-size: 48px;
+      line-height: 1;
+    }
+
+    .total  .big-num { color: var(--accent); }
+    .avail  .big-num { color: var(--green); }
+    .occ    .big-num { color: var(--red); }
+
+    /* ── Section heading ── */
+    .section-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .section-title span { color: var(--accent); margin-right: 8px; }
+
+    /* ── Slot Grid ── */
+    .slots {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    @media (min-width: 700px) {
+      .slots { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    .slot-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px 16px 20px;
+      text-align: center;
+      position: relative;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .slot-card.occupied {
+      border-color: rgba(255,51,85,0.4);
+      box-shadow: 0 0 20px rgba(255,51,85,0.08);
+    }
+
+    .slot-card.empty {
+      border-color: rgba(0,255,136,0.2);
+      box-shadow: 0 0 20px rgba(0,255,136,0.05);
+    }
+
+    .slot-card.nosignal {
+      border-color: var(--border);
+      opacity: 0.6;
+    }
+
+    .slot-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      position: absolute;
+      top: 12px; right: 12px;
+    }
+
+    .occupied  .slot-indicator { background: var(--red);    box-shadow: 0 0 6px var(--red); }
+    .empty     .slot-indicator { background: var(--green);  box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+    .nosignal  .slot-indicator { background: var(--muted); }
+
+    .slot-icon {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      margin: 0 auto 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+
+    .occupied  .slot-icon { background: rgba(255,51,85,0.12);  }
+    .empty     .slot-icon { background: rgba(0,255,136,0.10);  }
+    .nosignal  .slot-icon { background: rgba(58,74,90,0.3);    }
+
+    .slot-name {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .slot-status {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .occupied  .slot-status { color: var(--red); }
+    .empty     .slot-status { color: var(--green); }
+    .nosignal  .slot-status { color: var(--muted); }
+
+    /* ── Parking Map ── */
+    .map-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 24px;
+      margin-bottom: 40px;
+    }
+
+    .parking-map {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 12px;
+      align-items: center;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .map-col { display: flex; flex-direction: column; gap: 12px; }
+
+    .map-slot {
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 12px;
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      transition: all 0.3s;
+    }
+
+    .map-slot.occupied { background: rgba(255,51,85,0.1);  border-color: rgba(255,51,85,0.4); color: var(--red); }
+    .map-slot.empty    { background: rgba(0,255,136,0.06); border-color: rgba(0,255,136,0.2); color: var(--green); }
+    .map-slot.nosignal { opacity: 0.4; }
+
+    .map-road {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 2px;
+    }
+
+    .road-line {
+      width: 2px;
+      height: 80px;
+      background: repeating-linear-gradient(
+        to bottom,
+        var(--muted) 0px,
+        var(--muted) 8px,
+        transparent 8px,
+        transparent 16px
+      );
+    }
+
+    /* ── Footer ── */
+    footer {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    /* ── Error bar ── */
+    .error-bar {
+      background: rgba(255,51,85,0.1);
+      border: 1px solid rgba(255,51,85,0.3);
+      border-radius: 4px;
+      padding: 12px 16px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--red);
+      margin-bottom: 24px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">P</div>
+      <div class="logo-text">
+        <h1>SmartPark</h1>
+        <p>LIVE MONITORING SYSTEM</p>
+      </div>
+    </div>
+    <div class="status-badge">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;">
+          <div class="live-dot" id="liveDot"></div>
+          <span id="liveLabel">LIVE</span>
+        </div>
+        <div class="updated-time" id="updatedTime">Connecting...</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Error bar -->
+  <div class="error-bar" id="errorBar">⚠ Cannot reach Supabase. Check your connection.</div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-card total">
+      <label>Total Slots</label>
+      <div class="big-num" id="totalCount">4</div>
+    </div>
+    <div class="summary-card avail">
+      <label>Available</label>
+      <div class="big-num" id="availCount">—</div>
+    </div>
+    <div class="summary-card occ">
+      <label>Occupied</label>
+      <div class="big-num" id="occCount">—</div>
+    </div>
+  </div>
+
+  <!-- Slot Cards -->
+  <div class="section-title"><span>//</span> SENSOR READINGS</div>
+  <div class="slots" id="slotGrid"></div>
+
+  <!-- Parking Map -->
+  <div class="section-title"><span>//</span> PARKING LAYOUT</div>
+  <div class="map-wrap">
+    <div class="parking-map">
+      <div class="map-col">
+        <div class="map-slot nosignal" id="map-slot1">SLOT 1</div>
+        <div class="map-slot nosignal" id="map-slot2">SLOT 2</div>
+      </div>
+      <div class="map-road">
+        <span>IN</span>
+        <div class="road-line"></div>
+        <span>OUT</span>
+      </div>
+      <div class="map-col">
+        <div class="map-slot nosignal" id="map-slot3">SLOT 3</div>
+        <div class="map-slot nosignal" id="map-slot4">SLOT 4</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>SMARTPARK SYSTEM &nbsp;|&nbsp; POWERED BY SUPABASE &nbsp;|&nbsp; AUTO-REFRESH 3s</footer>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://sbngkozcyiksqnmeqxaw.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNibmdrb3pjeWlrc3FubWVxeGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY1MjI5MTksImV4cCI6MjA5MjA5ODkxOX0.K31yDqOCxXWHyZcAwwZ9hOXPjMpp1iRMo2LVXpLRJTU";
+
+  const SLOTS = [
+    { key: "slot1", label: "Slot 1" },
+    { key: "slot2", label: "Slot 2" },
+    { key: "slot3", label: "Slot 3" },
+    { key: "slot4", label: "Slot 4" },
+  ];
+
+  const icons = { occupied: "🚗", empty: "✅", nosignal: "❓" };
+
+  // Build slot cards
+  const grid = document.getElementById("slotGrid");
+  SLOTS.forEach(slot => {
+    grid.innerHTML += `
+      <div class="slot-card nosignal" id="card-${slot.key}">
+        <div class="slot-indicator"></div>
+        <div class="slot-icon" id="icon-${slot.key}">❓</div>
+        <div class="slot-name">${slot.label}</div>
+        <div class="slot-status" id="status-${slot.key}">NO SIGNAL</div>
+      </div>`;
+  });
+
+  function updateUI(data) {
+    let avail = 0, occ = 0;
+
+    SLOTS.forEach(slot => {
+      const row = data.find(r => r.slot_name === slot.key);
+      const status = row ? row.status : null;
+
+      const card    = document.getElementById("card-" + slot.key);
+      const iconEl  = document.getElementById("icon-" + slot.key);
+      const statEl  = document.getElementById("status-" + slot.key);
+      const mapEl   = document.getElementById("map-" + slot.key);
+
+      if (status === "occupied") {
+        card.className  = "slot-card occupied";
+        iconEl.textContent = "🚗";
+        statEl.textContent = "OCCUPIED";
+        if (mapEl) { mapEl.className = "map-slot occupied"; mapEl.textContent = slot.label + " — OCC"; }
+        occ++;
+      } else if (status === "empty") {
+        card.className  = "slot-card empty";
+        iconEl.textContent = "✅";
+        statEl.textContent = "EMPTY";
+        if (mapEl) { mapEl.className = "map-slot empty"; mapEl.textContent = slot.label + " — FREE"; }
+        avail++;
+      } else {
+        card.className  = "slot-card nosignal";
+        iconEl.textContent = "❓";
+        statEl.textContent = "NO SIGNAL";
+        if (mapEl) { mapEl.className = "map-slot nosignal"; mapEl.textContent = slot.label; }
+      }
+    });
+
+    document.getElementById("availCount").textContent = avail;
+    document.getElementById("occCount").textContent   = occ;
+    document.getElementById("updatedTime").textContent =
+      "Updated: " + new Date().toLocaleTimeString();
+
+    document.getElementById("liveDot").className   = "live-dot";
+    document.getElementById("liveLabel").textContent = "LIVE";
+    document.getElementById("errorBar").style.display = "none";
+  }
+
+  async function fetchData() {
+    try {
+      const res = await fetch(
+        SUPABASE_URL + "/rest/v1/parking_slots?select=slot_name,status",
+        {
+          headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": "Bearer " + SUPABASE_KEY
+          }
+        }
+      );
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      updateUI(data);
+    } catch (err) {
+      document.getElementById("liveDot").className    = "live-dot offline";
+      document.getElementById("liveLabel").textContent = "OFFLINE";
+      document.getElementById("errorBar").style.display = "block";
+      document.getElementById("updatedTime").textContent = "Last attempt: " + new Date().toLocaleTimeString();
+    }
+  }
+
+  fetchData();
+  setInterval(fetchData, 3000);
+</script>
+</body>
+</html>
