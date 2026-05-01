@@ -499,6 +499,7 @@
       );
       if (!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
+       console.log(data); 
       updateUI(data);
     } catch (err) {
       document.getElementById("liveDot").className    = "live-dot offline";
